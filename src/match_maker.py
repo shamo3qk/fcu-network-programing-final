@@ -26,6 +26,6 @@ class MatchMaker:
             match self.get_match():
                 case (player1, player2) if player1 and player2:
                     print("Match found! Starting game...")
-                    start_game(player1, player2)
+                    threading.Thread(target=start_game, args=(player1, player2)).start()
                 case _:
                     time.sleep(0.1)
