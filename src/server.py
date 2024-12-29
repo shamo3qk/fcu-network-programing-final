@@ -2,6 +2,9 @@ import socket
 import threading
 from match_maker import MatchMaker
 
+INCOMING_IP_ANY = "0.0.0.0"
+SERVER_PORT = 9999
+
 
 # 處理客戶端連線
 def handle_client(client_socket, match_maker):
@@ -41,9 +44,10 @@ def main():
     print("Matchmaker started.")
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(("0.0.0.0", 9999))
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind((INCOMING_IP_ANY, SERVER_PORT))
     server.listen(5)
-    print("Server started on port 9999.")
+    print(f"Server started on port {SERVER_PORT}.")
 
     try:
         while True:
@@ -60,7 +64,7 @@ def main():
                 print(f"Unexcepted error: {e}")
                 continue
     except KeyboardInterrupt:
-        print("Received keyboard interrupt. Terminated.")
+        print("\nShutting down server.")
     except Exception as e:
         print(f"Unexcepted error: {e}")
     finally:
