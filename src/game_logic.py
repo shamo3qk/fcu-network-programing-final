@@ -1,3 +1,4 @@
+import inspect
 import time
 from queue import Queue
 from bullet_manager import BulletManager
@@ -15,8 +16,8 @@ class Game:
         self.bullet_manager = bullet_manager
         self.turn = 0  # 初始回合
         self.action_handlers = {
-            "shoot opponent": self.handle_shoot_opponent,
-            "shoot self": self.handle_shoot_self,
+            0: self.handle_shoot_opponent,
+            1: self.handle_shoot_self,
         }
 
     def handle_shoot_opponent(self) -> bool:
@@ -46,12 +47,17 @@ class Game:
     def switch_turn(self):
         self.turn = (self.turn + 1) % len(self.players)
 
-    def process_action(self, action: str) -> bool:
-        handler = self.action_handlers.get(action)
-        if handler:
+    def process_action(self, action_index: int, *args):
+        handler = self.action_handlers.get(action_index)
+        if handler is None:
+            self.get_current_player().send("Invalid action!")
+            return False
+
+        handler_signature = inspect.signature(handler)
+        if len(handler_signature.parameters) == 0:
             return handler()
-        self.get_current_player().send("Invalid action!")
-        return False
+        else:
+            return handler(*args)
 
 
 def start_game(player1, player2):
@@ -92,13 +98,16 @@ def game_loop(player1: Player, player2: Player, bullet_manager: BulletManager):
         opponent_player = game.get_opponent_player()
 
         current_player.send("Your turn")
-        action = current_player.recv(1024)
+        data = current_player.recv(1024)
+        parts = data.split(" ")
+        action_index = int(parts[0])
+        action_args = [int(arg) for arg in parts[1:]] if len(parts) > 1 else []
 
-        event_queue.put((game.turn, action))
+        event_queue.put((game.turn, action_index, action_args))
 
         while not event_queue.empty():
-            turn, action = event_queue.get()
-            if game.process_action(action):
+            turn, action_index, action_args = event_queue.get()
+            if game.process_action(action_index, *action_args):
                 current_player.send("Game over, You win!")
                 opponent_player.send("Game over, You lose!")
                 return
