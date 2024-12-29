@@ -105,29 +105,39 @@ class MyGame(arcade.Window):
             case PlayerState.IN_GAME:
                 self.draw_game_ui()
 
+    def on_lobby_key_press(self, key, modifiers):
+        """處理大廳狀態的按鍵輸入"""
+        match key:
+            case arcade.key.ENTER:
+                if self.player_name:
+                    self.client_socket.send(self.player_name.encode("utf-8"))
+                    self.state = self.state.next_state()
+                    self.message = "Matching..."
+                    threading.Thread(target=self.handle_command).start()
+            case arcade.key.BACKSPACE:
+                self.player_name = self.player_name[:-1]
+            case arcade.key.SPACE:
+                self.player_name += " "
+            case _:
+                self.player_name += chr(key)
+
+    def on_game_key_press(self, key, modifiers):
+        """處理遊戲中狀態的按鍵輸入"""
+        match key:
+            case arcade.key.KEY_1:
+                self.client_socket.send("shoot opponent".encode("utf-8"))
+                self.turn = False
+            case arcade.key.KEY_2:
+                self.client_socket.send("shoot self".encode("utf-8"))
+                self.turn = False
+
     def on_key_press(self, key, modifiers):
-        if self.state == PlayerState.IN_LOBBY:
-            match key:
-                case arcade.key.ENTER:
-                    if self.player_name:
-                        self.client_socket.send(self.player_name.encode("utf-8"))
-                        self.state = self.state.next_state()
-                        self.message = "Matching..."
-                        threading.Thread(target=self.handle_command).start()
-                case arcade.key.BACKSPACE:
-                    self.player_name = self.player_name[:-1]
-                case arcade.key.SPACE:
-                    self.player_name += " "
-                case _:
-                    self.player_name += chr(key)
-        elif self.state == PlayerState.IN_GAME and self.turn:
-            match key:
-                case arcade.key.KEY_1:
-                    self.client_socket.send("shoot opponent".encode("utf-8"))
-                    self.turn = False
-                case arcade.key.KEY_2:
-                    self.client_socket.send("shoot self".encode("utf-8"))
-                    self.turn = False
+        match self.state:
+            case PlayerState.IN_LOBBY:
+                self.on_lobby_key_press(key, modifiers)
+            case PlayerState.IN_GAME:
+                if self.turn:
+                    self.on_game_key_press(key, modifiers)
 
     def handle_command(self):
         """
