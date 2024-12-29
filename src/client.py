@@ -18,6 +18,7 @@ class PlayerState(IntEnum):
     IN_LOBBY = 1
     MATCHING = 2
     IN_GAME = 3
+    IN_END_SCREEN = 4
 
     def next_state(self):
         return STATE_TRANSITIONS.get(self, PlayerState.DISCONNECTED)
@@ -28,7 +29,8 @@ STATE_TRANSITIONS = {
     PlayerState.DISCONNECTED: PlayerState.IN_LOBBY,
     PlayerState.IN_LOBBY: PlayerState.MATCHING,
     PlayerState.MATCHING: PlayerState.IN_GAME,
-    PlayerState.IN_GAME: PlayerState.IN_LOBBY,
+    PlayerState.IN_GAME: PlayerState.IN_END_SCREEN,
+    PlayerState.IN_END_SCREEN: PlayerState.IN_LOBBY,
 }
 
 
@@ -94,6 +96,15 @@ class MyGame(arcade.Window):
                 18,
             )
 
+    def draw_end_screen_ui(self):
+        arcade.draw_text(
+            "Press 'q' to return to lobby",
+            SCREEN_WIDTH / 3,
+            SCREEN_HEIGHT - 200,
+            arcade.color.WHITE,
+            18,
+        )
+
     def on_draw(self):
         arcade.start_render()
         arcade.set_background_color(arcade.color.BLACK)
@@ -106,6 +117,8 @@ class MyGame(arcade.Window):
                 self.draw_lobby_ui()
             case PlayerState.IN_GAME:
                 self.draw_game_ui()
+            case PlayerState.IN_END_SCREEN:
+                self.draw_end_screen_ui()
 
     def on_lobby_key_press(self, key, modifiers):
         """處理大廳狀態的按鍵輸入"""
@@ -120,6 +133,8 @@ class MyGame(arcade.Window):
                 self.player_name = self.player_name[:-1]
             case arcade.key.SPACE:
                 self.player_name += " "
+            case arcade.key.Q:
+                self.close()
             case _:
                 self.player_name += chr(key)
 
@@ -132,6 +147,13 @@ class MyGame(arcade.Window):
             case arcade.key.KEY_2:
                 self.client_socket.send("shoot self".encode("utf-8"))
                 self.turn = False
+            case arcade.key.Q:
+                self.close()
+
+    def on_end_screen_key_press(self, key, modifiers):
+        match key:
+            case arcade.key.Q:
+                self.state = PlayerState.IN_LOBBY
 
     def on_key_press(self, key, modifiers):
         match self.state:
@@ -140,6 +162,8 @@ class MyGame(arcade.Window):
             case PlayerState.IN_GAME:
                 if self.turn:
                     self.on_game_key_press(key, modifiers)
+            case PlayerState.IN_END_SCREEN:
+                self.on_end_screen_key_press(key, modifiers)
 
     def handle_command(self):
         """
@@ -173,7 +197,8 @@ class MyGame(arcade.Window):
                             return
                 elif "Game over" in message:
                     self.message = message
-                    self.state = PlayerState.IN_LOBBY
+                    self.state = PlayerState.IN_END_SCREEN
+                    self.player_name = ""
                 self.message = message
             except Exception as e:
                 self.message = f"Connection lost. {e}"
