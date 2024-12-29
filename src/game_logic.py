@@ -14,6 +14,28 @@ class Game:
         self.players = [player1, player2]
         self.bullet_manager = bullet_manager
         self.turn = 0  # 初始回合
+        self.action_handlers = {
+            "shoot opponent": self.handle_shoot_opponent,
+            "shoot self": self.handle_shoot_self,
+        }
+
+    def handle_shoot_opponent(self) -> bool:
+        opponent_player = self.get_opponent_player()
+
+        self.switch_turn()
+        if self.bullet_manager.shoot():
+            opponent_player.life -= 1
+            return opponent_player.life == 0
+        return False
+
+    def handle_shoot_self(self) -> bool:
+        current_player = self.get_current_player()
+
+        if self.bullet_manager.shoot():
+            current_player.life -= 1
+            self.switch_turn()
+            return current_player.life == 0
+        return False
 
     def get_current_player(self) -> Player:
         return self.players[self.turn]
@@ -25,21 +47,10 @@ class Game:
         self.turn = (self.turn + 1) % len(self.players)
 
     def process_action(self, action: str) -> bool:
-        current_player = self.get_current_player()
-        opponent_player = self.get_opponent_player()
-
-        if action == "shoot opponent":
-            self.switch_turn()  # 無論如何都要切換回合
-            if self.bullet_manager.shoot():
-                opponent_player.life -= 1
-                return opponent_player.life == 0
-        elif action == "shoot self":
-            if self.bullet_manager.shoot():
-                current_player.life -= 1
-                self.switch_turn()  # 只有打中才切換
-                return current_player.life == 0
-            return False
-
+        handler = self.action_handlers.get(action)
+        if handler:
+            return handler()
+        self.get_current_player().send("Invalid action!")
         return False
 
 
