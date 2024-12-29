@@ -44,6 +44,11 @@ class MyGame(arcade.Window):
         self.client_socket = None
         self.bullet_chamber = []
         self.message = "Connecting to server..."
+        # self.action_handlers = {
+        #     "Game start!": self.handle_game_start,
+        #     "Game over": self.handle_game_over,
+        #     "Your turn": self.handle_your_turn,
+        # }
 
     def setup(self):
         # 嘗試連線到伺服器
@@ -142,10 +147,10 @@ class MyGame(arcade.Window):
         """處理遊戲中狀態的按鍵輸入"""
         match key:
             case arcade.key.KEY_1:
-                self.client_socket.send("shoot opponent".encode("utf-8"))
+                self.client_socket.send("0".encode("utf-8"))
                 self.turn = False
             case arcade.key.KEY_2:
-                self.client_socket.send("shoot self".encode("utf-8"))
+                self.client_socket.send("1".encode("utf-8"))
                 self.turn = False
             case arcade.key.Q:
                 self.close()
