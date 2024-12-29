@@ -69,13 +69,17 @@ def start_game(player1, player2):
 
     try:
         # 通知玩家匹配成功
-        player1.send(f"Match found! Your opponent: {player2.name}")
-        player2.send(f"Match found! Your opponent: {player1.name}")
+        # player1.send(f"Match found! Your opponent: {player2.name}")
+        # player2.send(f"Match found! Your opponent: {player1.name}")
         time.sleep(1)
 
         # 發送初始生命值
-        player1.send(f"Game start! Your life: {player1.life}")
-        player2.send(f"Game start! Your life: {player2.life}")
+        player1.send("0\n")  # Game start
+        player2.send("0\n")  # Game start
+        player1.send(f"3 {player1.life}\n")  # Update life
+        player2.send(f"3 {player2.life}\n")  # Update life
+        player1.send(f"4 {TOTAL_BULLETS} {LIVE_BULLETS}\n")  # Update bullet
+        player2.send(f"4 {TOTAL_BULLETS} {LIVE_BULLETS}\n")  # Update bullet
 
         # 初始化遊戲
         bullet_manager = BulletManager(TOTAL_BULLETS, LIVE_BULLETS)
@@ -97,20 +101,30 @@ def game_loop(player1: Player, player2: Player, bullet_manager: BulletManager):
         current_player = game.get_current_player()
         opponent_player = game.get_opponent_player()
 
-        current_player.send("Your turn")
-        data = current_player.recv(1024)
-        parts = data.split(" ")
-        action_index = int(parts[0])
-        action_args = [int(arg) for arg in parts[1:]] if len(parts) > 1 else []
+        current_player.send("2\n")  # Your turn
 
-        event_queue.put((game.turn, action_index, action_args))
+        messages = current_player.recv(1024).split("\n")
+        for message in messages:
+            if not message.strip():
+                continue
+            parts = message.split(" ")
+            if not parts[0].isdigit():
+                print(f"Invalid message format: {message}")
+                continue
+            action_index = int(parts[0])
+            action_args = [int(arg) for arg in parts[1:]] if len(parts) > 1 else []
+
+            event_queue.put((game.turn, action_index, action_args))
 
         while not event_queue.empty():
             turn, action_index, action_args = event_queue.get()
             if game.process_action(action_index, *action_args):
-                current_player.send("Game over, You win!")
-                opponent_player.send("Game over, You lose!")
+                current_player.send("1 1\n")  # Game over
+                opponent_player.send("1 0\n")  # Game over
                 return
 
             for player in game.players:
-                player.send(f"Update, Your life: {player.life}")
+                player.send(f"3 {player.life}\n")  # Update life
+                player.send(
+                    f"4 {bullet_manager.total_bullets - bullet_manager.chamber_index} {bullet_manager.live_bullets}\n"
+                )  # Update Bullet

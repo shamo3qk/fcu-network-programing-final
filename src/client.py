@@ -1,5 +1,6 @@
 import socket
 import threading
+import inspect
 import arcade
 from enum import IntEnum
 
@@ -42,13 +43,51 @@ class MyGame(arcade.Window):
         self.state = PlayerState.DISCONNECTED
         self.turn = False
         self.client_socket = None
-        self.bullet_chamber = []
+        self.bullet_chamber = ""
         self.message = "Connecting to server..."
-        # self.action_handlers = {
-        #     "Game start!": self.handle_game_start,
-        #     "Game over": self.handle_game_over,
-        #     "Your turn": self.handle_your_turn,
-        # }
+        self.action_handlers = {
+            0: self.handle_game_start,
+            1: self.handle_game_over,
+            2: self.handle_your_turn,
+            3: self.handle_update_life,
+            4: self.handle_update_bullet,
+        }
+
+    def handle_action(self, action_index: int, *args):
+        handler = self.action_handlers.get(action_index)
+        if handler is None:
+            print("Invalid action!")
+            return False
+
+        handler_signature = inspect.signature(handler)
+        if len(handler_signature.parameters) == 0:
+            return handler()
+        else:
+            return handler(*args)
+
+    def handle_game_start(self):
+        self.state = PlayerState.IN_GAME
+
+    def handle_game_over(self, is_winner: int):
+        result = "win" if is_winner == 1 else "lose"
+        self.message = f"Game over! you are {result}!"
+        self.state = PlayerState.IN_END_SCREEN
+        self.player_name = ""
+
+    def handle_your_turn(self):
+        self.turn = True
+
+    def handle_update_life(self, life):
+        self.life = life
+
+    def handle_update_bullet(self, total_bullets: int, live_bullets: int):
+        chamber = ""
+        for i in range(total_bullets):
+            if i < live_bullets:
+                chamber += "+"
+            else:
+                chamber += "*"
+        self.bullet_chamber = chamber
 
     def setup(self):
         # 嘗試連線到伺服器
@@ -86,7 +125,7 @@ class MyGame(arcade.Window):
             18,
         )
         arcade.draw_text(
-            f"Bullet chamber: {self.bullet_chamber}",
+            f"-> {self.bullet_chamber}",
             20,
             SCREEN_HEIGHT - 120,
             arcade.color.WHITE,
@@ -113,9 +152,7 @@ class MyGame(arcade.Window):
     def on_draw(self):
         arcade.start_render()
         arcade.set_background_color(arcade.color.BLACK)
-        arcade.draw_text(
-            f"Command: {self.message}", 20, SCREEN_HEIGHT - 40, arcade.color.WHITE, 18
-        )
+        arcade.draw_text(self.message, 20, SCREEN_HEIGHT - 40, arcade.color.WHITE, 18)
 
         match self.state:
             case PlayerState.IN_LOBBY:
@@ -147,10 +184,10 @@ class MyGame(arcade.Window):
         """處理遊戲中狀態的按鍵輸入"""
         match key:
             case arcade.key.KEY_1:
-                self.client_socket.send("0".encode("utf-8"))
+                self.client_socket.send("0\n".encode("utf-8"))
                 self.turn = False
             case arcade.key.KEY_2:
-                self.client_socket.send("1".encode("utf-8"))
+                self.client_socket.send("1\n".encode("utf-8"))
                 self.turn = False
             case arcade.key.Q:
                 self.close()
@@ -176,37 +213,26 @@ class MyGame(arcade.Window):
         """
         while True:
             try:
-                message = self.client_socket.recv(1024).decode("utf-8")
-                if "Game start!" in message:
-                    self.state = PlayerState.IN_GAME
-                    parts = message.split(", ")
-                    if len(parts) > 1:
-                        try:
-                            self.life = int(parts[1].split(": ")[1])  # 確保是有效的數字
-                        except ValueError:
-                            self.message = (
-                                f"Error in life value format: {parts[1].split(': ')[1]}"
-                            )
-                            return
-                elif "Your turn" in message:
-                    self.turn = True
-                elif "Update" in message:
-                    parts = message.split(", ")
-                    if len(parts) > 1:
-                        try:
-                            self.life = int(parts[1].split(": ")[1])  # 確保是有效的數字
-                        except ValueError:
-                            self.message = (
-                                f"Error in life value format: {parts[1].split(': ')[1]}"
-                            )
-                            return
-                elif "Game over" in message:
-                    self.message = message
-                    self.state = PlayerState.IN_END_SCREEN
-                    self.player_name = ""
-                self.message = message
+                messages = self.client_socket.recv(1024).decode("utf-8").split("\n")
+                for message in messages:
+                    if not message.strip():  # 忽略空訊息
+                        continue
+                    print(message)
+                    parts = message.split(" ")
+                    if not parts[0].isdigit():  # 檢查第一部分是否為數字
+                        print(f"Invalid message format: {message}")
+                        continue
+                    action_index = int(parts[0])
+                    action_args = (
+                        [int(arg) for arg in parts[1:]] if len(parts) > 1 else []
+                    )
+                    self.handle_action(action_index, *action_args)
+            except ValueError as ve:
+                print(f"Invalid argument format in message: {message}")
+                print(ve)
+                continue
             except Exception as e:
-                self.message = f"Connection lost. {e}"
+                print(e)
                 break
 
 
