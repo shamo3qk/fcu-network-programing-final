@@ -97,7 +97,9 @@ class MyGame(arcade.Window):
     def on_draw(self):
         arcade.start_render()
         arcade.set_background_color(arcade.color.BLACK)
-        arcade.draw_text(self.message, 20, SCREEN_HEIGHT - 40, arcade.color.WHITE, 18)
+        arcade.draw_text(
+            f"Command: {self.message}", 20, SCREEN_HEIGHT - 40, arcade.color.WHITE, 18
+        )
 
         match self.state:
             case PlayerState.IN_LOBBY:
