@@ -50,13 +50,6 @@ def game_loop(player1, player2, player1_life, player2_life, bullet_manager):
         current_life = player1_life if turn == 0 else player2_life
         opponent_life = player2_life if turn == 0 else player1_life
 
-        # 發送遊戲開始訊息，去掉了 Bullet chamber
-        current_player[0].send(f"Game start! Your life: {current_life}".encode("utf-8"))
-        opponent_player[0].send(
-            f"Game start! Your life: {opponent_life}".encode("utf-8")
-        )
-        time.sleep(1)
-
         current_player[0].send("Your turn".encode("utf-8"))
         action = current_player[0].recv(1024).decode("utf-8")
 
@@ -68,8 +61,10 @@ def game_loop(player1, player2, player1_life, player2_life, bullet_manager):
                     current_player[0].send("Game over, You win!".encode("utf-8"))
                     opponent_player[0].send("Game over, You lose!".encode("utf-8"))
                     break
+                # 擊中對方，延續行動
             else:
-                turn = 1 - turn  # 換人回合
+                # 對對方發射空彈，換人
+                turn = 1 - turn
         elif action == "shoot self":
             if bullet_manager.shoot():
                 current_life -= 1  # 自己生命值 -1
@@ -77,17 +72,20 @@ def game_loop(player1, player2, player1_life, player2_life, bullet_manager):
                     current_player[0].send("Game over, You lose!".encode("utf-8"))
                     opponent_player[0].send("Game over, You win!".encode("utf-8"))
                     break
+                # 對自己發射實彈，換人
+                turn = 1 - turn
             else:
-                turn = 1 - turn  # 換人回合
+                # 對自己開空彈，延續行動
+                pass
 
-        # 每回合都發送更新的生命值，去掉了 Bullet chamber
+        # 每回合都發送更新的生命值
         current_player[0].send(f"Update, Your life: {current_life}".encode("utf-8"))
         opponent_player[0].send(f"Update, Your life: {opponent_life}".encode("utf-8"))
 
         # 更新玩家生命值
-        if turn == 0:
+        if turn == 0: # player1 的回合
             player1_life = current_life
             player2_life = opponent_life
-        else:
+        else: # player2 的回合
             player2_life = current_life
             player1_life = opponent_life
