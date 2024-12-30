@@ -69,7 +69,7 @@ class MyGame(arcade.Window):
         self.state = PlayerState.IN_GAME
 
     def handle_game_over(self, is_winner: int):
-        result = "win" if is_winner == 1 else "lose"
+        result = "lose" if is_winner == 1 else "win"
         self.message = f"Game over! you are {result}!"
         self.state = PlayerState.IN_END_SCREEN
         self.player_name = ""
